@@ -1,0 +1,159 @@
+---
+title: "Predicting Child Maltreatment in Little Rock, AR"
+author: "Jyotishka Datta"
+date: "March 5, 2019"
+output: 
+  html_document:
+    theme: united
+    toc: yes
+    toc_depth: 6
+    toc_float: yes
+---
+
+```{r setup, include=FALSE, warning=FALSE, messages=FALSE, echo=FALSE, cache=FALSE}
+knitr::opts_chunk$set(include=FALSE, warning=FALSE, 
+                      message=FALSE, echo=FALSE, cache=TRUE, fig.align="center")
+```
+
+
+```{r packages, message=FALSE, warning=FALSE, cache=FALSE, echo=FALSE}
+library(pacman)
+
+p_load("sf"             # Spatial data objects and methods
+,"mapview"        # Interactive Map Viewing
+,"ggmap"          # ggplot2 addon for base maps
+,"cowplot" 
+,"spatstat"       # KDE and other spatial functions
+,"raster"         # cell-based spatial operations
+,"tidyverse"      # data manipulation framework
+,"Hmisc"          # using cut2(  functions for ggplot legends
+,"fitdistrplus"   # Distribution fitting functions
+,"lubridate"      # Power tools for handling dates
+,"tidycensus" 
+,"lwgeom" 
+,"Hmisc" 
+,"hrbrthemes" 
+,"gridExtra" 
+,"patchwork" 
+,"spdep"          # KNN functions
+,"foreach" 
+,"doParallel" 
+,"corrplot" 
+,"ranger"         # randomforest implimentation      
+,"glmnet"         # for Ridge and Lasso Regression
+,"knitr"          # for kable table
+,"kableExtra" 
+,"FNN"            # KNN for CPS vs. NN plots
+,"groupdata2" 
+,"htmltools" 
+,"viridis" 
+,"viridisLite")
+```
+
+
+```{r themes}
+mapTheme <- function() {
+  theme(
+    plot.title = element_text(size = 14, family = "sans", face = "plain", hjust = 0),
+    plot.subtitle=element_text(size = 11, family = "sans", hjust = 0),
+    plot.caption=element_text(size = 10, family = "sans", face = "italic", hjust = 0),
+    axis.text = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks = element_blank(),
+    axis.line = element_blank(),
+    legend.title = element_text(size = 10, family = "sans"),
+    legend.text = element_text(size = 9, family = "sans"),
+    panel.border = element_blank()
+  )
+}
+
+plotTheme <- function() {
+  theme(
+    plot.title = element_text(size = 14, family = "sans", face = "plain", hjust = 0),
+    plot.subtitle=element_text(size = 11, family = "sans", hjust = 0),
+    plot.caption=element_text(size = 10, family = "sans", face = "italic", hjust = 0), 
+    axis.title.x = element_text(size = 10, family = "sans", face = "plain", hjust = 1, vjust = -0.5),
+    axis.title.y = element_text(size = 10, family = "sans", face = "plain", hjust = 1, vjust = 1),
+    axis.text = element_text(size = 9, family = "sans", face = "plain"),
+    panel.background = element_blank(),
+    panel.grid.minor = element_line(colour = "gray"),
+    panel.grid.major = element_line(colour = "gray"),
+    axis.ticks = element_blank(),
+    legend.title = element_text(size = 10, family = "sans"),
+    legend.text = element_text(size = 9, family = "sans"),
+    axis.line = element_blank()
+  )
+}
+```
+
+```{r options}
+mapviewOptions(basemaps = c("Stamen.TonerLite", "OpenStreetMap.DE"))
+base_dir = "C:/Users/jd033/Documents/Data/LR-Child"
+fishnet_grid_dim = 1000
+k_direction = 8 # 4 = rook, 8 = queen
+k_nearest_neighbors = 5
+# Either k (e.g. 5 or 10) or "LOOCV"
+n_folds = "LOOCV"
+# threshold quntile for statArea grouping
+stat_area_quantile = 0.60
+# Number of simulations for CPS vs. NN
+simulations = 1000
+# Number of neighbors for CPS vs. NN
+k = 5
+# random seed
+set.seed(717)
+```
+
+
+```{r SOURCE}
+source('C:/Users/jd033/Documents/Data/LR-Child/src/R/FUNCTIONS_VAPAP.R', echo = TRUE, keep.source = TRUE)
+# source('C:/Users/jd033/Documents/Data/LR-Child/src/R/FEA_CREATE_VARIABLES.R', echo = TRUE, keep.source = TRUE)
+```
+
+
+```{r neighborhoods}
+# Richmond Neighborhoods
+nbr <- read_sf("https://data.richmondgov.com/resource/7juf-nwis.geojson")  %>%
+  st_sf() %>%
+  st_transform(102747)
+
+nbr_diss <- nbr %>%
+  mutate(dissolve = 1) %>%
+  # get rid of slivers
+  st_buffer(., dist = 0.1) %>%
+  group_by(dissolve) %>%
+  summarise()
+
+nbr_rast_SP <- raster(as(nbr_diss, "Spatial"), nrows = 2000, ncol = 2000)
+
+```
+
+
+
+```{r basemap}
+nbr <- read_sf("https://data.richmondgov.com/resource/7juf-nwis.geojson") %>%
+  st_transform(crs = 102747)
+cps_base_map   <- get_map(location = unname(st_bbox(ll(st_buffer(var_list[["CPS_Accepted"]],5000)))),
+                          source = "stamen",
+                          maptype = "toner")
+
+### get CPS_Accepted values (add 1 column for dissolving)
+cps_dissolve <- var_list[["CPS_Accepted"]] %>%
+  mutate(value = 1) %>%
+  dplyr::select(value)
+```
+
+
+```{r fishnet}
+net <- st_make_grid(nbr, cellsize = fishnet_grid_dim) 
+# count CPS incidents per net cell - really just to get net raster into sf polygon format
+net_agg <- aggregate(cps_dissolve, net, sum) %>%
+  tibble::rowid_to_column(.,"net_id")
+# list of net cells IDs that intersect with Richmond
+net_intersect <- st_intersects(nbr, net_agg) 
+# extract Richmonds net cells based on intersect ID
+net_Richmond <- net_agg[unique(unlist(net_intersect)),]
+net_hood <- st_join(net_Richmond, nbr, largest = TRUE)
+listw <- nb2listw(poly2nb(as(net_Richmond, "Spatial"), queen = TRUE))
+```
