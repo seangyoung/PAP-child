@@ -784,7 +784,7 @@ find_dupes <- function(dat){
 #'
 #' @export
 #' 
-ll <- function(dat, crs = 4326){
+ll <- function(dat, crs = 2765){
   st_transform(dat, crs)
 }
 
