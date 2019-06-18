@@ -16,9 +16,9 @@ knitr::opts_chunk$set(warning=FALSE,
 
 # Goals
 
-To create a supervised learning framework for the child maltreatment data in Little Rock between 2015 and 2018. The framework I am trying to follow is similar to the one here: [https://pennmusa.github.io/MUSA_801.io/project_5/](Predicting Spatial Risk of Opioid Overdoses in Providence, RI). 
+To create a supervised learning framework for the child maltreatment data in Little Rock between 2015 and 2018. The framework I am trying to follow is similar to the one here: (Predicting Spatial Risk of Opioid Overdoses in Providence, RI)[https://pennmusa.github.io/MUSA_801.io/project_5/]. 
 
-The first task is to perform an exploratory analysis similar to the one here [https://pennmusa.github.io/MUSA_801.io/project_5/#2_exploratory_analysis](exploratory analysis for opioid overdose).
+The first task is to perform an exploratory analysis similar to the one here (exploratory analysis for opioid overdose)[https://pennmusa.github.io/MUSA_801.io/project_5/#2_exploratory_analysis].
 
 
 # Package Dependencies and Preamble
