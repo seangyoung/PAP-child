@@ -170,9 +170,6 @@ knitr::kable(var_names, caption = "List of Variables")
 ```
 
 
-  **Question: what was the `var_list` for the Richmond child maltreatment data analysis, i.e. list of variables as .csv or .xls files?**
-
-
 # Read LR shapefile 
 
 ```{r, shapefile_reading}
@@ -205,8 +202,6 @@ dim(nbr)
 names(nbr)
 ```
 
-  **Question: Should we project immediately using st_transform? (like you've done here https://pennmusa.github.io/MUSA_801.io/project_5/#61_set_up)**
-
 ```{r, shapefile_reading_part2, echo = T, eval = T}
 nbr_diss <- nbr %>%
   mutate(dissolve = 1) %>%
@@ -226,22 +221,12 @@ cps_dissolve <- var_list[["CM_geocoded"]] %>%
 ```
 
 
-# Next steps 
+# Steps
 
   - Step 2:  Import spatial neighborhood data with `read_sf()` and `get_decennial()`
   - Step 3:  Create spatial fishnet grid with `st_make_grid()` and calculate spatial weights with `poly2nb()` and `nb2listw()` 
   - Step 4:  Intersect fishnet and census blocks to create populations estimates and weights per fishnet cell.
   
-
-## To do: R code chunks 
-
-Questions about R chunks that do not work correctly, so these are mostly related to using some specific functions inside these packages. 
-
-  **Question: the `get_map` is not working, could be because it's expecting lat-lon but getting (X,Y) coordianates? The error message says Error: scale must be a positive integer 0-18. Stackexchange isn't much of a help.**
-  
-  **Question: How did the `CPS Accepted` file look like? Are these all child maltreatment cases or a subset of them? The one that I have here is the same data-set that Sherri Jo shared with us.**
-
-
 ```{r basemap, eval = F, echo = TRUE}
 # nbr <- read_sf("https://data.richmondgov.com/resource/7juf-nwis.geojson") %>%
 #   st_transform(crs = 102747)
@@ -258,9 +243,7 @@ cps_base_map   <- get_googlemap(location = cm_bbox,
 #                           maptype = "toner")
 ```
 
-  **Question: `st_make_grid` seems to be working, but not generating a fishnet over the LR boundaries as I want. It's creating a regular rectangle. As a result, the next lines are not working !**
-
-```{r fishnet,eval = F, echo = T}
+```{r fishnet,eval = T, echo = T}
 st_crs(nbr) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
 
@@ -279,21 +262,44 @@ net_hood <- st_join(net_littlerock, nbr, largest = TRUE)
 listw <- nb2listw(poly2nb(as(net_littlerock, "Spatial"), queen = TRUE))
 ```
 
-**Question: Do we need the following, or can we use the population information from the shapefile that we read at the very beginning?**
 
-```{r population_data, eval = F, echo = T}
-vars10 <- c("P0010001") # total population (correct, I checked the web)
+```{r population_data, eval = T, echo = T, message = F, results='hide'}
+vars10 <- c("P001001") # total population (correct, I checked the web)
 ## get total 2010 census pop for blocks & calculate area
-#littlerock_block <- get_decennial(geography = "block", variables = vars10, year = 2010,
-
-#summary_var = "P0010001", state = 51, county = 760, geometry = TRUE) %>%
-#st_transform(crs = 2756)
-
+littlerock_block <- get_decennial(geography = "block", variables = vars10, year = 2010,
+summary_var = "P001001", state = "05", county = "119", geometry = TRUE) 
 # calc area
-# littlerock_block <- st_read("littlerock_block.shp")    #was having issues with above code when I knit so pulled in from the PAP project file
 
 littlerock_block <- littlerock_block %>%
   mutate(acre = as.numeric(st_area(littlerock_block)*2.29568e-5),
          # acre = units::set_units(acre, acre), 
          pop_acre_rate = value / acre) 
 ```
+
+
+```{r, t_intersection}
+st_crs(littlerock_block) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
++ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+
+net_blocks_intersect <- st_intersection(littlerock_block, net_littlerock)
+
+# group by cell and calc block stats.
+net_blocks_intersect <- net_blocks_intersect %>%
+  mutate(intersect_area_acres = as.numeric(st_area(net_blocks_intersect)*2.29568e-5)) %>%
+  group_by(net_id) %>%
+  mutate(cnt = n(),
+         pcnt_of_block = intersect_area_acres/acre,
+         intersect_pop = value * pcnt_of_block) %>%
+  arrange(net_id)
+
+# group by cell and calc block stats.
+net_blocks_intersect <- net_blocks_intersect %>%
+  mutate(intersect_area_acres = as.numeric(st_area(net_blocks_intersect)*2.29568e-5)) %>%
+  group_by(net_id) %>%
+  mutate(cnt = n(),
+         pcnt_of_block = intersect_area_acres/acre,
+         intersect_pop = value * pcnt_of_block) %>%
+  arrange(net_id)
+```
+
+

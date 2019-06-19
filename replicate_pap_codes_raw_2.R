@@ -1,29 +1,7 @@
----
-title: "Geospatial Code Replication Workflow"
-author: "Jyotishka Datta"
-date: "6/17/2019"
-output: 
-  html_document:
-    toc: true
-    toc_depth : 1
-    toc_float: true
----
+rm(list = ls())
 
-```{r setup, include=FALSE, warning=FALSE, messages=FALSE, echo=FALSE, cache=FALSE}
-knitr::opts_chunk$set(warning=FALSE, 
-                      message=FALSE, echo=TRUE, cache=TRUE, fig.align="center")
-```
+## Only R codes for repliacte PAP 
 
-# Goals
-
-To create a supervised learning framework for the child maltreatment data in Little Rock between 2015 and 2018. The framework I am trying to follow is similar to the one here: (Predicting Spatial Risk of Opioid Overdoses in Providence, RI)[https://pennmusa.github.io/MUSA_801.io/project_5/]. 
-
-The first task is to perform an exploratory analysis similar to the one here (exploratory analysis for opioid overdose)[https://pennmusa.github.io/MUSA_801.io/project_5/#2_exploratory_analysis].
-
-
-# Package Dependencies and Preamble
-
-```{r packages, message=FALSE, warning=FALSE, cache=FALSE, echo=TRUE}
 # install.packages("devtools")
 # devtools::install_github("thomasp85/patchwork")
 
@@ -56,10 +34,9 @@ library("groupdata2")
 library("htmltools")
 library("viridis")
 library("viridisLite")
-```
 
+## Themes 
 
-```{r themes, echo = F}
 mapTheme <- function() {
   theme(
     plot.title = element_text(size = 14, family = "sans", face = "plain", hjust = 0),
@@ -93,10 +70,9 @@ plotTheme <- function() {
     axis.line = element_blank()
   )
 }
-```
 
+## Options
 
-```{r options}
 mapviewOptions(basemaps = c("Stamen.TonerLite", "OpenStreetMap.DE"))
 
 base_dir = "C:/Users/jd033/Box/Child Maltreatment"
@@ -113,24 +89,14 @@ simulations = 1000
 k = 5
 # random seed
 set.seed(11235)
-```
 
+## Source 
 
-```{r SOURCE}
 source('C:/Users/jd033/Documents/GitHub/PAP-child/FUNCTIONS_VAPAP_LR.R', echo = FALSE, keep.source = TRUE)
 # source('C:/Users/jd033/Documents/GitHub/PAP-child/FEA_CREATE_VARIABLES_LR.R', echo = TRUE, keep.source = TRUE)
-```
 
-# Report Appendix 1: Data wrangling
+## Global variables 
 
-Step 1. Detect all xls/xlsx and csv files in a directory and read them into a list
-
-This Code example of data import function. The inputs are `.xls`, `.xlsx`, and `.csv` files in a folder. The output is a list data type where each element of the list if one of the input data sets in the sf spatial data format.
-
-## Reading Variables 
-
-
-```{r global, echo = TRUE}
 # requires all data in *.csv or *.xls files containing coordinate field names "X" and "Y"
 # `crs` in the call to `st_as_sf()` needs to be set to the ESPG code of your data projection
 # `base_dir` file path and many feature names are specified for the current project.
@@ -166,16 +132,12 @@ for(i in seq_along(files)){
   }
 }
 names(var_list) <- var_names
-knitr::kable(var_names, caption = "List of Variables")
-```
+
+# knitr::kable(var_names, caption = "List of Variables")
 
 
-  **Question: what was the `var_list` for the Richmond child maltreatment data analysis, i.e. list of variables as .csv or .xls files?**
+#### Read shapefile 
 
-
-# Read LR shapefile 
-
-```{r, shapefile_reading}
 # Load new packages (might be redundant)
 pacman::p_load(lubridate, sf, raster, rgdal, broom, rgeos, GISTools)
 
@@ -188,11 +150,8 @@ setwd("C:/Users/jd033/Box/Child Maltreatment/Little Rock Data")
 #   dsn = paste0("Shapefile_LR"),
 #   layer = "LR_Municipal_Boundary_SF")
 
-# nbr = st_read("C:/Users/jd033/Box/Child Maltreatment/Little Rock Data/Shapefile_LR/LR_Municipal_Boundary_SF.shp")%>% 
-#               st_transform(2756)
-
-nbr = st_read("C:/Users/jd033/Box/Child Maltreatment/Working Files_AR ACS Data/ACS_Tract_Shapefile/LR_Tracts_Working51.shp")
-
+nbr = st_read("C:/Users/jd033/Box/Child Maltreatment/Working Files_AR ACS Data/ACS_Tract_Shapefile/LR_Tracts_Working51.shp") 
+      # %>% st_transform(2756)
 plot(nbr)
 
 # Class
@@ -200,14 +159,16 @@ class(nbr)
 
 # Dimensions
 dim(nbr)
-
 # Info in shapefile
 names(nbr)
-```
 
-  **Question: Should we project immediately using st_transform? (like you've done here https://pennmusa.github.io/MUSA_801.io/project_5/#61_set_up)**
 
-```{r, shapefile_reading_part2, echo = T, eval = T}
+#### Shapefile reading: neighborhood dissolve? 
+
+# nbr <- read_sf("https://data.richmondgov.com/resource/7juf-nwis.geojson")  %>%
+#   st_sf() %>%
+#   st_transform(102747)
+
 nbr_diss <- nbr %>%
   mutate(dissolve = 1) %>%
   # get rid of slivers
@@ -216,59 +177,43 @@ nbr_diss <- nbr %>%
   summarise()
 
 nbr_rast_SP <- raster(as(nbr_diss, "Spatial"), nrows = 2000, ncol = 2000)
-```
 
-```{r, eval = T, echo = TRUE}
-### get CPS_Accepted values (add 1 column for dissolving)
-cps_dissolve <- var_list[["CM_geocoded"]] %>%
-  mutate(value = 1) %>%
-  dplyr::select(value)
-```
-
-
-# Next steps 
-
-  - Step 2:  Import spatial neighborhood data with `read_sf()` and `get_decennial()`
-  - Step 3:  Create spatial fishnet grid with `st_make_grid()` and calculate spatial weights with `poly2nb()` and `nb2listw()` 
-  - Step 4:  Intersect fishnet and census blocks to create populations estimates and weights per fishnet cell.
-  
-
-## To do: R code chunks 
-
-Questions about R chunks that do not work correctly, so these are mostly related to using some specific functions inside these packages. 
-
-  **Question: the `get_map` is not working, could be because it's expecting lat-lon but getting (X,Y) coordianates? The error message says Error: scale must be a positive integer 0-18. Stackexchange isn't much of a help.**
-  
-  **Question: How did the `CPS Accepted` file look like? Are these all child maltreatment cases or a subset of them? The one that I have here is the same data-set that Sherri Jo shared with us.**
-
-
-```{r basemap, eval = F, echo = TRUE}
-# nbr <- read_sf("https://data.richmondgov.com/resource/7juf-nwis.geojson") %>%
-#   st_transform(crs = 102747)
+## get map
 
 (cm_bbox = unname(st_bbox(ll(st_buffer(var_list[["CM_geocoded"]],dist = 0.1)))))
+# (cm_bbox = unname(st_bbox(ll(st_buffer(nbr,dist = 0.1)))))
 
+# var_list[["CM_geocoded"]]
+# 
+# cm_bbox
 
 cps_base_map   <- get_googlemap(location = cm_bbox,
                           source = "google",
                           maptype = "terrain")
 
-# cps_base_map   <- get_map(location = cm_bbox,
-#                           source = "stamen",
-#                           maptype = "toner")
-```
+# ggmap(cps_base_map)
 
-  **Question: `st_make_grid` seems to be working, but not generating a fishnet over the LR boundaries as I want. It's creating a regular rectangle. As a result, the next lines are not working !**
+### get CPS_Accepted values (add 1 column for dissolving)
+cps_dissolve <- var_list[["CM_geocoded"]] %>%
+  mutate(value = 1) %>%
+  dplyr::select(value) #%>% st_transform(crs = 2756)
 
-```{r fishnet,eval = F, echo = T}
 st_crs(nbr) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
 
-net <- st_make_grid(nbr, cellsize = fishnet_grid_dim) 
+# nbr <- nbr %>% st_transform(2756)
+
+net <- st_make_grid(nbr, cellsize = fishnet_grid_dim/10) #%>%st_transform(2756)
+
+nbr %>% st_crs()
+cps_dissolve %>% st_crs()
+
+# st_crs(cps_dissolve) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
+# +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
 
 # count CPS incidents per net cell - really just to get net raster into sf polygon format
-net_agg <- aggregate(cps_dissolve, net, sum) %>%
-  tibble::rowid_to_column(.,"net_id")
+(net_agg <- aggregate(cps_dissolve, net, sum) %>%
+  tibble::rowid_to_column(.,"net_id"))
 
 # list of net cells IDs that intersect with Richmond
 net_intersect <- st_intersects(nbr, net_agg) 
@@ -277,23 +222,102 @@ net_intersect <- st_intersects(nbr, net_agg)
 net_littlerock <- net_agg[unique(unlist(net_intersect)),]
 net_hood <- st_join(net_littlerock, nbr, largest = TRUE)
 listw <- nb2listw(poly2nb(as(net_littlerock, "Spatial"), queen = TRUE))
-```
 
-**Question: Do we need the following, or can we use the population information from the shapefile that we read at the very beginning?**
 
-```{r population_data, eval = F, echo = T}
-vars10 <- c("P0010001") # total population (correct, I checked the web)
+## Population data 
+
+vars10 <- c("P001001") # total population (correct, I checked the web)
 ## get total 2010 census pop for blocks & calculate area
-#littlerock_block <- get_decennial(geography = "block", variables = vars10, year = 2010,
-
-#summary_var = "P0010001", state = 51, county = 760, geometry = TRUE) %>%
-#st_transform(crs = 2756)
-
+littlerock_block <- get_decennial(geography = "block", variables = vars10, year = 2010,
+summary_var = "P001001", state = "05", county = "119", geometry = TRUE) 
 # calc area
-# littlerock_block <- st_read("littlerock_block.shp")    #was having issues with above code when I knit so pulled in from the PAP project file
 
 littlerock_block <- littlerock_block %>%
   mutate(acre = as.numeric(st_area(littlerock_block)*2.29568e-5),
          # acre = units::set_units(acre, acre), 
          pop_acre_rate = value / acre) 
-```
+
+
+## t_intersection 
+
+st_crs(littlerock_block) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
++ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+
+net_blocks_intersect <- st_intersection(littlerock_block, net_littlerock)
+
+# group by cell and calc block stats.
+net_blocks_intersect <- net_blocks_intersect %>%
+  mutate(intersect_area_acres = as.numeric(st_area(net_blocks_intersect)*2.29568e-5)) %>%
+  group_by(net_id) %>%
+  mutate(cnt = n(),
+         pcnt_of_block = intersect_area_acres/acre,
+         intersect_pop = value * pcnt_of_block) %>%
+  arrange(net_id)
+
+# group by cell and calc block stats.
+net_blocks_intersect <- net_blocks_intersect %>%
+  mutate(intersect_area_acres = as.numeric(st_area(net_blocks_intersect)*2.29568e-5)) %>%
+  group_by(net_id) %>%
+  mutate(cnt = n(),
+         pcnt_of_block = intersect_area_acres/acre,
+         intersect_pop = value * pcnt_of_block) %>%
+  arrange(net_id)
+
+## Summarize pop 
+fishnet_pop <- net_blocks_intersect %>% # xcc
+  group_by(net_id) %>%
+  summarise(net_pop = sum(intersect_pop)) %>%
+  filter(net_pop > 0)   # <-  zeros or no zeros!!!!
+
+######### MAKE NET AND RATE FOR ALL CPS VARS
+CPS_vars <- grep("CM_",names(var_list), value = TRUE)
+CPS_agg <- NULL
+for(i in seq_along(CPS_vars)){
+  var_name <- paste0("net_",CPS_vars[i])
+  cat(var_name,"\n")
+  
+  CPS_dat <- var_list[["CM_geocoded"[i]]] %>%
+    mutate(value = 1) %>%
+    dplyr::select(value)
+  fishnet_CPS_var <- aggregate(x = CPS_dat, by = fishnet_pop, FUN = sum) %>%
+    st_drop_geometry() %>%
+    mutate(Feature = var_name) %>%
+    dplyr::select(Feature,value)
+  
+  CPS_agg <- rbind(CPS_agg, fishnet_CPS_var)
+}
+CPS_agg <- CPS_agg %>%
+  mutate(id = rep(seq(1:nrow(fishnet_pop)),length(CPS_vars))) %>%
+  spread(Feature, value) %>%
+  dplyr::select(-id) %>%
+  mutate(geometry = fishnet_pop$geometry) %>%
+  st_as_sf()
+#### Spatial join of fishnet_pop and fishnet_cps to then calculate rate for all CPS features
+fishnet_pop_cps <- st_join(fishnet_pop, CPS_agg, join = st_equals) %>%
+  mutate_at(vars(paste0("net_",CPS_vars)), funs(rate = ./(net_pop/100)))  %>% # cps per 100 person
+  rename_at(vars( contains( "_rate")), funs(paste("rate", gsub("net_|_rate", "", .), sep = "_"))) %>% 
+  replace(is.na(.), 0) # replace NA with zero
+
+fishnet_coords <- fishnet_pop_cps %>%
+  st_centroid() %>%
+  st_coordinates() %>%
+  as.matrix()
+
+## CPS_COUNT_BY_FISHNET_plot
+
+
+fishnet_pop_cps_cut <- fishnet_pop_cps %>%
+  mutate(net_CPS_Accepted = ifelse(is.na(net_CPS_Accepted), 0, net_CPS_Accepted)) %>% 
+  make_cuts(., "net_CPS_Accepted", cuts = "breaks", n_breaks = 10)
+
+CPS_COUNT_BY_FISHNET_PLOT <- ggmap(cps_base_map) +
+  geom_sf(data = ll(fishnet_pop_cps_cut), aes(fill = cut_val), inherit.aes = FALSE, color = NA, alpha = 0.8) +
+  labs(title = "CPS count per\nfishnet cell") +
+  scale_fill_viridis_d(na.value = NA, option = "D", direction = 1, name = "CPS Count") +
+  mapTheme() +
+  theme(plot.title = element_text(size = 14, family = "sans", face = "plain", hjust = 0),
+        plot.subtitle=element_text(size = 11, family = "sans", hjust = 0),
+        plot.caption=element_text(size = 10, family = "sans", face = "italic", hjust = 0),
+        axis.line = element_blank(),
+        legend.title = element_text(size = 10, family = "sans"),
+        legend.text = element_text(size = 9, family = "sans"))
