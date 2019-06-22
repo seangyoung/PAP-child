@@ -5,7 +5,7 @@ date: "6/22/2019"
 output: 
   html_document:
     toc: true
-    toc_depth : 1
+    toc_depth : 2
     toc_float: true
 ---
 
@@ -176,9 +176,13 @@ knitr::kable(var_names, caption = "List of Variables")
 ```
 
 
-# Read LR shapefile 
+## Read LR shapefile 
 
 The following code chunk reads the shapefile `LR_Tracts_Working51.shp` from the project folder and plots the variable `ALAND`. 
+
+**Note that this is different from what was done in PAP-VA, where the neighbourhoods shapefile was imported from their data portal  (using `read_sf("https://data.richmondgov.com/resource/7juf-nwis.geojson")`).** 
+
+The `class`, `dim` and `names` are used to understand what is inside this data frame. 
 
 ```{r, shapefile_reading}
 
@@ -200,8 +204,8 @@ nbr %>%
   geom_sf(color = NA) + 
   coord_sf(crs = 2765) + 
   scale_fill_viridis_c(option = "magma") + 
-  labs(title = "LR Shapefile") + 
-  theme(axis.text.x = element_text(size = 8, angle =45 ), axis.text.y = element_text(size = 8))
+  labs(title = "LR Shapefile") + plotTheme()+
+  theme(axis.text.x = element_text(size = 8, angle =45 ), axis.text.y = element_text(size = 8)) 
 ```
 
 ## Creating raster 
@@ -228,11 +232,11 @@ cps_dissolve <- var_list[["CM_geocoded"]] %>%
   dplyr::select(value)
 ```
 
-## Base map 
+## Creating Base map 
 
 This chunk creates the base map from the bounding box extracted from the `CM_geocoded` file (child maltreatment incidences), and pulls the map using the `ggmap` package. 
 
-**Note** One need the Google API to be able to pull the map, which is not shown here. 
+**Note** One need the Google API to be able to pull the map, which is not shown here. Also, PAP-VA used `get_map` function, which is a little different from the `get_googlemap` function here. It seems `get_map` does not work with this data. 
 
 ```{r basemap, eval = T, echo = TRUE}
 
@@ -247,11 +251,10 @@ cps_base_map   <- get_googlemap(location = cm_bbox,
 
 ## Create fishnet and aggregate child maltreatment by fishnet grids 
 
-This chunk will create a fishnet of size `r fishnet_grid_dim` from the `nbr` shapefile that was read earlier, and aggregate child maltreatment by the grid-cells (`net_agg`)
+This chunk will create a fishnet of size `r fishnet_grid_dim` from the `nbr` shapefile that was read earlier, and aggregate child maltreatment by the grid-cells (`net_agg`). Next, the function `st_intersects()` returns the indices for intersecting cells and the `net_agg` data frame. The functions `st_join()` performs spatial left or inner join and `nb2listw()` attaches spatial weights to an `nb` list. 
 
-The next lines `st_intersects` returns the indices for intersecting cells and the `net_agg` data frame. The functions `st_join` performs spatial left or inner join and `nb2listw` attaches spatial weights to an `nb` list. 
 
-**Note that the `st_crs` step should not be necessary unless there coordinate reference systems don't match. One way of checking this is to perform `cps_dissolve %>% st_crs() == nbr %>% st_crs()`.**
+**Note that the `st_crs` step here is a 'hackish' way of coercing the two objects to have the same CRS, and it does not reproject the data, but it should not be necessary unless there coordinate reference systems don't match. One way of checking this is to perform `cps_dissolve %>% st_crs() == nbr %>% st_crs()`.**
 
 
 ```{r fishnet,eval = T, echo = T}
@@ -280,7 +283,7 @@ listw <- nb2listw(poly2nb(as(net_littlerock, "Spatial"), queen = TRUE))
 
 This chunk uses the **tidycensus** package: namely, the `get_decennial` function, which lets one pull data from 1990, 2000, and 2010 decennial US Census APIs, and `get_acs`, for the 5-year American Community Survey APIs. 
 
-Now, for the current project, we will use ACS data extracted and re-coded separately by Shaun, depending on which features are more important in this context. **I am still running these lines as the lines that follow depends on the data-sets created at this step. It should be possible to "replace" these decennial or ACS data-sets at a later stage.**
+Now, for the current project, we will use ACS data extracted and re-coded separately, depending on which features are more important in this context. **I am still running these lines as the remainder of this code critically depends on the data-sets created at this step. It should be possible to "replace" these decennial or ACS data-sets at a later stage.**
 
 There is also some concern about Census Bureau changing the definition of variables and changing variable IDS and accessing permits in near future.
 
@@ -304,20 +307,38 @@ littlerock_tract %>%
   geom_sf(color = NA) + 
   # coord_sf(crs = 2765) + 
   scale_fill_viridis_c(option = "magma") + 
-  labs(title = "Population by tract: decennial data")
+  labs(title = "Population by tract: decennial data")+ 
+  plotTheme()
 ```
 
 
-## Issues with Performing Intersection 
+## Issues with Intersection 
 
 The next few chunks of R code will calculate child maltreatment counts and rates and plot as a map to show the locations. This chunk is running into issues as the two data-sets that we are trying to intersect are being projected into non-overlapping spaces, probably because of some issues with the files being imported. 
 
-```{r, t_intersection, eval = F, echo = T}
-st_crs(littlerock_block) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
+**Note: Once again, the setting the "prjstring" using `st_crs()` is not a good idea, and it does not work here.**
+
+```{r, t_intersection, eval = T, echo = T}
+st_crs(littlerock_tract) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
 
-net_blocks_intersect <- st_intersection(littlerock_block, net_littlerock)
+(net_blocks_intersect <- st_intersection(littlerock_tract, net_littlerock))
+```
 
+**A possible reason could be that the `net_littlerock' data, created from the `nbr` data, is being projected in a wrong location.**
+
+```{r}
+(p2 <- net_littlerock %>%
+  ggplot(aes(fill = value)) + 
+  geom_sf(color = NA) + 
+  scale_fill_viridis_c(option = "magma") + 
+  labs(title = "Fishnet")+plotTheme())
+```
+
+## Next steps 
+
+
+```{r, t_intersection_2, eval = F, echo = T}
 # group by cell and calc block stats.
 net_blocks_intersect <- net_blocks_intersect %>%
   mutate(intersect_area_acres = as.numeric(st_area(net_blocks_intersect)*2.29568e-5)) %>%
