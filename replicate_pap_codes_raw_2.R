@@ -1,39 +1,45 @@
+gc()
+
 rm(list = ls())
+
 
 ## Only R codes for repliacte PAP 
 
 # install.packages("devtools")
 # devtools::install_github("thomasp85/patchwork")
 
-library("sf")            # Spatial data objects and methods
-library("mapview")       # Interactive Map Viewing
-library("ggmap")         # ggplot2 addon for base maps
-library("cowplot")
-library("spatstat")      # KDE and other spatial functions
-library("raster")        # cell-based spatial operations
-library("tidyverse")     # data manipulation framework
-library("Hmisc")         # using cut2() functions for ggplot legends
-library("fitdistrplus")  # Distribution fitting functions
-library("lubridate")     # Power tools for handling dates
-library("tidycensus")
-library("lwgeom")
-library("Hmisc")
-library("hrbrthemes")
-library("gridExtra")
-library("patchwork")
-library("spdep")         # KNN functions
-library("foreach")
-library("doParallel")
-library("corrplot")
-library("ranger")        # randomforest implimentation      
-library("glmnet")        # for Ridge and Lasso Regression
-library("knitr")         # for kable table
-library("kableExtra")
-library("FNN")           # KNN for CPS vs. NN plots
-library("groupdata2")
-library("htmltools")
-library("viridis")
-library("viridisLite")
+if(T){
+  library("sf")            # Spatial data objects and methods
+  library("mapview")       # Interactive Map Viewing
+  library("ggmap")         # ggplot2 addon for base maps
+  library("cowplot")
+  library("spatstat")      # KDE and other spatial functions
+  library("raster")        # cell-based spatial operations
+  library("tidyverse")     # data manipulation framework
+  library("Hmisc")         # using cut2() functions for ggplot legends
+  library("fitdistrplus")  # Distribution fitting functions
+  library("lubridate")     # Power tools for handling dates
+  library("tidycensus")
+  library("lwgeom")
+  library("Hmisc")
+  library("hrbrthemes")
+  library("gridExtra")
+  library("patchwork")
+  library("spdep")         # KNN functions
+  library("foreach")
+  library("doParallel")
+  library("corrplot")
+  library("ranger")        # randomforest implimentation      
+  library("glmnet")        # for Ridge and Lasso Regression
+  library("knitr")         # for kable table
+  library("kableExtra")
+  library("FNN")           # KNN for CPS vs. NN plots
+  library("groupdata2")
+  library("htmltools")
+  library("viridis")
+  library("viridisLite")
+}
+
 
 ## Themes 
 
@@ -149,10 +155,20 @@ setwd("C:/Users/jd033/Box/Child Maltreatment/Little Rock Data")
 # nbr =readOGR(
 #   dsn = paste0("Shapefile_LR"),
 #   layer = "LR_Municipal_Boundary_SF")
+# 
+# nbr = nbr %>% st_as_sf() %>% st_transform(crs = 4269)
 
 nbr = st_read("C:/Users/jd033/Box/Child Maltreatment/Working Files_AR ACS Data/ACS_Tract_Shapefile/LR_Tracts_Working51.shp") 
-      # %>% st_transform(2756)
+#%>% st_transform(crs = 2765)
+
 plot(nbr)
+
+nbr %>%
+  ggplot(aes(fill = ALAND)) + 
+  geom_sf(color = NA) + 
+  coord_sf(crs = 2765) + 
+  scale_fill_viridis_c(option = "magma") + 
+  labs(title = "Fishnet")
 
 # Class
 class(nbr)
@@ -187,63 +203,101 @@ nbr_rast_SP <- raster(as(nbr_diss, "Spatial"), nrows = 2000, ncol = 2000)
 # 
 # cm_bbox
 
-cps_base_map   <- get_googlemap(location = cm_bbox,
-                          source = "google",
-                          maptype = "terrain")
+# cps_base_map   <- get_googlemap(location = cm_bbox,
+#                           source = "google",
+#                           maptype = "terrain")
+
+cps_base_map <- get_map(location = "Little Rock")
 
 # ggmap(cps_base_map)
+
+nbr = st_read("C:/Users/jd033/Box/Child Maltreatment/Working Files_AR ACS Data/ACS_Tract_Shapefile/LR_Tracts_Working51.shp") 
+#%>% st_transform(crs = 2765)
 
 ### get CPS_Accepted values (add 1 column for dissolving)
 cps_dissolve <- var_list[["CM_geocoded"]] %>%
   mutate(value = 1) %>%
-  dplyr::select(value) #%>% st_transform(crs = 2756)
+  dplyr::select(value) %>% st_transform(crs = 2765)
 
 st_crs(nbr) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
 
 # nbr <- nbr %>% st_transform(2756)
 
-net <- st_make_grid(nbr, cellsize = fishnet_grid_dim/10) #%>%st_transform(2756)
+net <- st_make_grid(nbr, cellsize = fishnet_grid_dim) #%>%st_transform(2756)
 
-nbr %>% st_crs()
-cps_dissolve %>% st_crs()
+# to_prj = nbr %>% st_crs() 
+# from_prj = cps_dissolve %>% st_crs()
+# cps_dissolve = st_transform(cps_dissolve, from_prj, to_proj)
 
-# st_crs(cps_dissolve) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
-# +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+cps_dissolve %>% st_crs() == nbr %>% st_crs() 
 
 # count CPS incidents per net cell - really just to get net raster into sf polygon format
 (net_agg <- aggregate(cps_dissolve, net, sum) %>%
   tibble::rowid_to_column(.,"net_id"))
 
-# list of net cells IDs that intersect with Richmond
-net_intersect <- st_intersects(nbr, net_agg) 
+net_agg_vals = net_agg$value[!is.na(net_agg$value)]
+hist(net_agg_vals)
 
-# extract Richmonds net cells based on intersect ID
+# list of net cells IDs that intersect with Little Rock
+(net_intersect <- st_intersects(nbr, net_agg))
+
+# extract Little Rock net cells based on intersect ID
 net_littlerock <- net_agg[unique(unlist(net_intersect)),]
 net_hood <- st_join(net_littlerock, nbr, largest = TRUE)
 listw <- nb2listw(poly2nb(as(net_littlerock, "Spatial"), queen = TRUE))
 
+net_littlerock$value[!is.na(net_littlerock$value)]
 
 ## Population data 
 
+options(tigris_use_cache = TRUE)
+
 vars10 <- c("P001001") # total population (correct, I checked the web)
 ## get total 2010 census pop for blocks & calculate area
-littlerock_block <- get_decennial(geography = "block", variables = vars10, year = 2010,
+littlerock_tract <- get_decennial(geography = "tract", variables = vars10, year = 2010,
 summary_var = "P001001", state = "05", county = "119", geometry = TRUE) 
 # calc area
 
-littlerock_block <- littlerock_block %>%
-  mutate(acre = as.numeric(st_area(littlerock_block)*2.29568e-5),
+littlerock_tract <- littlerock_tract %>%
+  mutate(acre = as.numeric(st_area(littlerock_tract)*2.29568e-5),
          # acre = units::set_units(acre, acre), 
          pop_acre_rate = value / acre) 
 
+(p1 <- littlerock_tract %>%
+  ggplot(aes(fill = value)) + 
+  geom_sf(color = NA) + 
+  # coord_sf(crs = 2765) + 
+  scale_fill_viridis_c(option = "magma") + 
+  labs(title = "Population by tract: decennial data"))
+
+
+(p2 <- net_littlerock %>%
+  ggplot(aes(fill = value)) + 
+  geom_sf(color = NA) + 
+  coord_sf(crs = 2765) + 
+  scale_fill_viridis_c(option = "magma") + 
+  labs(title = "Fishnet"))
+
+p1 + p2 + plot_layout(ncol = 1)
 
 ## t_intersection 
 
-st_crs(littlerock_block) <- "+proj=lcc +lat_1=34.76666666666667 +lat_2=33.3 +lat_0=32.66666666666666 +lon_0=-92 +x_0=400000 +y_0=400000
-+ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+net_littlerock %>% st_transform(crs = 2765)%>% st_crs() == 
+  littlerock_block  %>% st_transform(crs = 2765)%>% st_crs()
+#
 
-net_blocks_intersect <- st_intersection(littlerock_block, net_littlerock)
+net_littlerock  <-  net_littlerock %>% st_transform(crs = 2765)
+littlerock_block <-  littlerock_block  %>% st_transform(crs = 2765)
+
+sum(!st_is_valid(net_littlerock))
+sum(!st_is_valid(littlerock_block))
+
+net_littlerock <- st_make_valid(net_littlerock)
+littlerock_block <- st_make_valid(littlerock_block)
+
+(net_blocks_intersect <- st_intersection(littlerock_block, net_littlerock))
+
 
 # group by cell and calc block stats.
 net_blocks_intersect <- net_blocks_intersect %>%
@@ -286,12 +340,14 @@ for(i in seq_along(CPS_vars)){
   
   CPS_agg <- rbind(CPS_agg, fishnet_CPS_var)
 }
+
 CPS_agg <- CPS_agg %>%
   mutate(id = rep(seq(1:nrow(fishnet_pop)),length(CPS_vars))) %>%
   spread(Feature, value) %>%
   dplyr::select(-id) %>%
   mutate(geometry = fishnet_pop$geometry) %>%
   st_as_sf()
+
 #### Spatial join of fishnet_pop and fishnet_cps to then calculate rate for all CPS features
 fishnet_pop_cps <- st_join(fishnet_pop, CPS_agg, join = st_equals) %>%
   mutate_at(vars(paste0("net_",CPS_vars)), funs(rate = ./(net_pop/100)))  %>% # cps per 100 person

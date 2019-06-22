@@ -4347,6 +4347,7 @@ for(k in seq_len(n_folds)){
   ```
   
   An important part of the evaluation of the meta-model is to compare it against important demographic factors that are not explicitly used in the model formulas. The `read_sf()` function retrieves spatial data for the neighborhood statistical groups (NSG) and `get_acs()` retrieves census data. The code that follows manipulates the census and NSG data by calculating percentages of population. After classifying the population percentage for both percent non-white and percent poverty, they are classified into high and low by diving at the 60the percentile. The errors are then aggregated to high and low classes using `aggregate()` and `make_cuts()`. Likewise the count of maltreatment events are aggregated in a similar manner. The last code chunk shows how the metrics are aggregated for poverty, but that same is done for percent non-white. 
+  
   ```{r APPENDIX_4f, eval=FALSE, echo=TRUE, include = TRUE, cache=FALSE}
   # Download statarea
   nbr_statAreas <- read_sf("https://data.richmondgov.com/resource/8kyq-v9j2.geojson") %>%
