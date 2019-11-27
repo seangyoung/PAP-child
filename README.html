@@ -7,6 +7,7 @@
 <meta charset="utf-8" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
 
@@ -268,7 +269,6 @@ code {
 }
 img {
   max-width:100%;
-  height: auto;
 }
 .tabbed-pane {
   padding-top: 12px;
@@ -342,18 +342,6 @@ summary {
 }
 </style>
 
-<script>
-$(document).ready(function () {
-  window.buildTabsets("TOC");
-});
-
-$(document).ready(function () {
-  $('.tabset-dropdown > .nav-tabs > li').click(function () {
-    $(this).parent().toggleClass('nav-tabs-open')
-  });
-});
-</script>
-
 <!-- code folding -->
 
 
@@ -377,15 +365,25 @@ $(document).ready(function () {
 </div>
 
 
-<div id="r-markdown-and-r-codes-for-child-maltreatment-project-little-rock." class="section level2">
-<h2>R markdown and R codes for child maltreatment project Little Rock.</h2>
+<div id="repository-for-the-little-rock-child-maltreatment-project." class="section level2">
+<h2>Repository for the Little Rock child maltreatment project.</h2>
 <p>This repository will be used to store and distribute the reports and methods for the different analyses performed for child maltreatment project in LR, along with some of the source codes.</p>
 </div>
-<div id="exploratory-analysis" class="section level2">
-<h2>Exploratory Analysis</h2>
-</div>
-<div id="section" class="section level2">
-<h2></h2>
+<div id="reports-and-r-codes." class="section level2">
+<h2>Reports and R codes.</h2>
+<p>The main HTML report with the full predictive analyses can be accessed here: <a href="https://dattahub.github.io/crime-analysis/LR_PAP_Draft_0923.html">LR child maltreatment predictive analyses</a>. Some exploratory analyses to look for patterns are in <a href="http://dattahub.github.io/crime-analysis/LR-child-mt-expl.html">this preliminary report</a>.</p>
+<p>R codes for reproducing this report are can be found at this location: <a href="https://github.com/DattaHub/PAP-child/R-Rmd">https://github.com/DattaHub/PAP-child/R-Rmd</a>. The main files are:</p>
+<ol style="list-style-type: decimal">
+<li>replicate_pap_XY_pred.R: replicates the entire pipeline subject to availability of shapefiles in a physical folder. The directory names must be changed for R to find these files.</li>
+<li>FEA_CREATE_VARIABLES_LR_2.R: creates variables (predictors and responses) that are used by the replicate_* file. Again, subject to shapefiles and need to change the directories.</li>
+<li>FUNCTIONS_VAPAP_LR.R. : a host of add-in functions that are used in the replicate_* code.</li>
+</ol>
+<p>Please direct your questions to:</p>
+<ol style="list-style-type: decimal">
+<li>Grant Drawve : <a href="mailto:drawve@uark.edu" class="email">drawve@uark.edu</a></li>
+<li>Shaun Thomas : <a href="mailto:shaun@uark.edu" class="email">shaun@uark.edu</a></li>
+<li>Jyotishka Datta: <a href="mailto:jd033@uark.edu" class="email">jd033@uark.edu</a>. (JD maintains this repository)</li>
+</ol>
 </div>
 
 
@@ -405,6 +403,23 @@ $(document).ready(function () {
 
 
 </script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
 
 <!-- dynamically load mathjax for compatibility with self-contained -->
 <script>
