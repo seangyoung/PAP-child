@@ -212,6 +212,20 @@ glm_fit <- function(dat, formula, family){
   return(glm_model)
 }
 
+library(devtools)
+install_github("hong-revo/glmnetUtils")
+library(glmnetUtils)
+
+glmnet_fit <- function(dat, formula, family){
+  glm_model <- glmnetUtils::cv.glmnet(formula, data = dat, alpha = 0.5)
+  return(glm_model)
+}
+
+# bayesreg_fit <- function(dat, formula, family){
+#   glm_model <- bayesreg(formula, data = dat, family = family, prior = "horseshoe")
+#   return(glm_model)
+# }
+
 #' Purrr helper to predict for Spatial Simultaneous Autoregressive Linear Model objects
 #'
 #' This function is a wrapper on `predict.sarlm` to simplify the call to return in-sample predictions. Has the option to square the resulting predictions.
@@ -486,8 +500,8 @@ feature_corrplot <- function(data, title){
   #col_ramp = col(200)
   col_ramp <- viridisLite::viridis(200)
   p <- corrplot(cps_cor, method = "color", col = col_ramp,
-                type = "upper", number.cex = .7,
-                addCoef.col = "black", tl.col = "black", tl.srt = 90, 
+                type = "upper", number.cex = .6,
+                addCoef.col = "black", tl.col = "black", tl.srt = 90,tl.cex = 0.6, 
                 sig.level = 0.01, insig = "blank", diag = FALSE, title = title, mar=c(0,0,1,0))
   return(p)
 }
@@ -525,8 +539,8 @@ make_fishnet_dist_plot <- function(dist_dat, base_map, alpha = 0.8, legend = "no
                                    col_scale = "D", direction = 1, var_name = "Cut Value",
                                    title = ""){
   layer_name <- unique(dist_dat$feature_name)
-  p <- ggmap(base_map) +
-    geom_sf(data = ll(dist_dat), aes(fill = cut_val), 
+  p <- dist_dat %>% 
+    ggplot() + geom_sf(aes(fill = cut_val), 
             color = NA, alpha = alpha, inherit.aes = F) +
     scale_fill_viridis_d(na.value = NA, option = col_scale, 
                          direction = direction, name = var_name) +
@@ -954,7 +968,7 @@ Aggregate_points_Features <- function(var_list, fishnet){
                              mutate(value = 1) %>%
                              dplyr::select(value)
                            # aggreagte feature points to fishnet cell by summing value (1 per point)
-                           net_agg <- sf::aggregate(dat, fishnet, sum) %>%
+                           net_agg <- aggregate(dat, fishnet, sum) %>%
                              mutate(feature_name = paste0("agg_",feature),
                                     net_id = fishnet$net_id)
                          }
