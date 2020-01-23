@@ -80,7 +80,7 @@ plotTheme <- function() {
 ## Options
 if(T){
   mapviewOptions(basemaps = c("Stamen.TonerLite", "OpenStreetMap.DE"))
-  base_dir = "C:/Users/jd033/Box/Child Maltreatment"
+  base_dir = "/Users/seanyoung/Documents/Research/PredictAlignPrevent/PAP-child"
   fishnet_grid_dim = 1000
   k_direction = 8 # 4 = rook, 8 = queen
   k_nearest_neighbors = 5
@@ -98,15 +98,15 @@ if(T){
 
 ## Source 
 
-source('C:/Users/jd033/Box/Child Maltreatment/R-codes/FUNCTIONS_VAPAP_LR.R', echo = FALSE, keep.source = TRUE)
-source('C:/Users/jd033/Box/Child Maltreatment/R-codes/FEA_CREATE_VARIABLES_LR_2.R', echo = TRUE, keep.source = TRUE)
+source(paste0(base_dir, '/R-Rmd/FUNCTIONS_VAPAP_LR.R'), echo = FALSE, keep.source = TRUE)
+source(paste0(base_dir, '/R-Rmd/FEA_CREATE_VARIABLES_LR_2.R'), echo = TRUE, keep.source = TRUE)
 
 # load("full_results_line_1983_0718.RData")
 
 # rm(list = ls())
 
-setwd("C:/Users/jd033/Box/Child Maltreatment/R-codes/")
-load("Rdata/source_file_objects.RData")
+setwd("/Users/seanyoung/Documents/Research/PredictAlignPrevent/PAP-child/R-Rmd")
+load("RData/source_file_objects.RData")
 
 ## LR tracts data
 lr_tract = var_list[["LR_Tracts_Working51"]]
